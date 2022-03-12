@@ -96,3 +96,32 @@ npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
 # Performance optimizations
 
 For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+
+## `solang` + `substrate` adaption 
+
+Branch `rmrk-wasm` features a `substrate` wasm build version of the `RMRKResource` contract. Required a little adaption as `assembly` and other calls are unsupported with solang making the `Address` library unusable. Thus `RMRKNestable#_mintNest` does not longer include a `require(to.isContract(), "Is not contract");` condition. Other modifications required to make the code compile were casts from `bytes8` to `bytes32` in `RMRKResource`, a slight adaption of the `try` block in `RMRKNestable#findRootOwner`, and declaring size variables in the `Strings` library as `uint32`s rather than `uint256`s.
+
+**installing `llvm13` + `solang@v0.1.10`**
+
+``` bash
+curl -fL \
+  -o $HOME/llvm13.0.tar.xz  \
+  https://github.com/hyperledger-labs/solang/releases/download/v0.1.10/llvm13.0-linux-x86-64.tar.xz
+cd $HOME
+tar Jxvf llvm13.0.tar.xz
+rm llvm13.0.tar.xz
+touch $HOME/.bashrc
+echo 'export "PATH=$HOME/llvm13.0/bin:$PATH"' >> $HOME/.bashrc
+echo 'export LLVM_SYS_130_PREFIX=$HOME/llvm13.0' >> $HOME/.bashrc
+curl -fL \
+  -o $HOME/solang \
+  https://github.com/hyperledger-labs/solang/releases/download/v0.1.10/solang-linux-x86-64
+chmod +x $HOME/solang
+mv $HOME/solang /usr/local/bin/solang
+```
+
+**compiling**
+
+``` bash
+solang --target substrate -o ./artifacts/ ./contracts/RMRK/RMRKResource.sol
+```

@@ -81,7 +81,7 @@ contract RMRKResource is RMRKNestable {
       });
       _resources[_tokenId][_id] = resource_;
       _priority[_tokenId].push(_id);
-      emit ResAdd(_tokenId, _id);
+      emit ResAdd(_tokenId, bytes32(_id));
   }
 
   //Check to see if loading struct into memory first saves gas or not
@@ -94,7 +94,7 @@ contract RMRKResource is RMRKNestable {
       require(resource.exists, "RMRK: resource does not exist");
       require(resource.pending, "RMRK: resource is already accepted");
       _resources[_tokenId][_id].pending = false;
-      emit ResAccept(_tokenId, _id);
+      emit ResAccept(_tokenId, bytes32(_id));
   }
 
   function setPriority(uint256 _tokenId, bytes8[] memory _ids) public {

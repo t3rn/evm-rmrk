@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 import "./IRMRKCore.sol";
 import "./IERC721Receiver.sol";
 import "./extensions/IERC721Metadata.sol";
-import "./utils/Address.sol";
+// import "./utils/Address.sol"; // solang doesn't support assembly and *call
 import "./utils/Context.sol";
 import "./utils/Strings.sol";
 import "./utils/introspection/ERC165.sol";
@@ -14,7 +14,7 @@ import "./access/IssuerControl.sol"; // double check, use owner if acceptable
 //import "hardhat/console.sol";
 
 contract RMRKNestable is Context, ERC165, IRMRKCore, IssuerControl  {
-  using Address for address;
+  // using Address for address;
   using Strings for uint256;
 
   struct Child {
@@ -118,8 +118,8 @@ contract RMRKNestable is Context, ERC165, IRMRKCore, IssuerControl  {
 
      IRMRKCore nft = IRMRKCore(ownerAdd);
 
-     try nft.isRMRKCore() {
-       nft.findRootOwner(id);
+     try nft.isRMRKCore() returns (bool) {
+       root = nft.findRootOwner(id);
      }
 
      catch (bytes memory) {
@@ -163,7 +163,7 @@ contract RMRKNestable is Context, ERC165, IRMRKCore, IssuerControl  {
 
   function removeChild(uint256 tokenId, address childAddress, uint256 childTokenId) public {
     Child[] memory children = childrenOf(tokenId);
-    uint i;
+    uint i = 0;
     while (i<children.length) {
       if (children[i].contractAddress == childAddress && children[i].tokenId == childTokenId) {
         //Remove item from array, does not preserve order.
@@ -265,7 +265,7 @@ contract RMRKNestable is Context, ERC165, IRMRKCore, IssuerControl  {
   function _mintNest(address to, uint256 tokenId, uint256 destId) internal virtual {
       require(to != address(0), "ERC721: mint to the zero address");
       require(!_exists(tokenId), "ERC721: token already minted");
-      require(to.isContract(), "Is not contract");
+      // require(to.isContract(), "Is not contract");
       IRMRKCore destContract = IRMRKCore(to);
       /* require(destContract.isRMRKCore(), "Not RMRK Core"); */ //Implement supportsInterface RMRKCore
 

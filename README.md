@@ -97,11 +97,23 @@ npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
 
 For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
 
+***
+
 ## `solang` + `substrate` adaption 
 
-Branch `rmrk-wasm` features a `substrate` wasm build version of the `RMRKResource` contract. Required a little adaption as `assembly` and other calls are unsupported with solang making the `Address` library unusable. Thus `RMRKNestable#_mintNest` does not longer include a `require(to.isContract(), "Is not contract");` condition. Other modifications required to make the code compile were casts from `bytes8` to `bytes32` in `RMRKResource`, a slight adaption of the `try` block in `RMRKNestable#findRootOwner`, and declaring size variables in the `Strings` library as `uint32`s rather than `uint256`s.
+Branch `rmrk-wasm` features a `solang` compatible `substrate` wasm targeting version of the `RMRK` contracts.
 
-**installing `llvm13` + `solang@v0.1.10`**
+Modifications to make the code compile:
+
++ ⚠️ `RMRKNestable#_mintNest` does no longer include a `require(to.isContract(), "Is not contract");` condition ⚠️ (line 268)
+  + because `assembly` and other calls are unsupported with solang making the `Address` library unusable (`RMRKNestable` line 8 and 17)
++ casts from `bytes8` to `bytes32` in `RMRKResource` (line 84 and 97)
++ a slight adaption of the `try` block in `RMRKNestable#findRootOwner` (line 121-122)
++ size variables declared as `uint32`s rather than `uint256`s in the `Strings` library (line 23, 45, and 56)
+
+### Try it out
+
+#### Installing `llvm13.0` + `solang@v0.1.10` + `substrate-contracts-node@v0.8.0`
 
 ``` bash
 curl -fL \
@@ -113,15 +125,76 @@ rm llvm13.0.tar.xz
 touch $HOME/.bashrc
 echo 'export "PATH=$HOME/llvm13.0/bin:$PATH"' >> $HOME/.bashrc
 echo 'export LLVM_SYS_130_PREFIX=$HOME/llvm13.0' >> $HOME/.bashrc
+
 curl -fL \
   -o $HOME/solang \
   https://github.com/hyperledger-labs/solang/releases/download/v0.1.10/solang-linux-x86-64
 chmod +x $HOME/solang
 mv $HOME/solang /usr/local/bin/solang
+
+cargo install \
+  contracts-node \
+  --git https://github.com/paritytech/substrate-contracts-node.git \
+  --tag v0.8.0 \
+  --force \
+  --locked
 ```
 
-**compiling**
+#### Compiling
 
 ``` bash
 solang --target substrate -o ./artifacts/ ./contracts/RMRK/RMRKResource.sol
+```
+
+#### Running `substrate-contracts-node`
+
+```bash
+substrate-contracts-node --dev --ws-port 9944
+```
+
+#### Instantiating a `RMRKResource` contract
+
+```bash
+wasm=$(jq -r .source.wasm ./artifacts/RMRKResource.contract)
+
+printf "%s null" $wasm > /tmp/rmrk.params
+
+npx --yes @polkadot/api-cli@beta \
+  --ws ws://localhost:9944 \
+  --seed //Alice \
+  --params /tmp/rmrk.params \
+  tx.contracts.uploadCode
+
+hash=$(jq -r .source.hash ./artifacts/RMRKResource.contract)
+value=1000000000000
+gas_limit=1000000000000
+storage_deposit_limit=1000000000000
+ctor_selector=$(jq -r .spec.constructors[0].selector ./artifacts/RMRKResource.contract)
+# gen the $data payload => 0x30524d524b5265736f7572636510524d524b
+# fn main() {
+#     println!(
+#         "0x{}{}",
+#         hex::encode(parity_scale_codec::Encode::encode("RMRKResource")),
+#         hex::encode(parity_scale_codec::Encode::encode("RMRK"))
+#     );
+# }
+# ctor selector + scale encoded contract name and symbol
+data="${ctor_selector}30524d524b5265736f7572636510524d524b"
+salt=0x0000000000000000000000000000000000000000000000000000000000000000
+
+printf \
+  "%d %d %d %s %s %s" \
+  $value \
+  $gas_limit \
+  $storage_deposit_limit \
+  $hash \
+  $data \
+  $salt \
+> /tmp/rmrk.params
+
+npx @polkadot/api-cli@beta \
+  --ws ws://localhost:9944 \
+  --seed //Alice \
+  --params /tmp/rmrk.params \
+  tx.contracts.instantiate
 ```

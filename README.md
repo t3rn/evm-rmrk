@@ -101,7 +101,7 @@ For faster runs of your tests and scripts, consider skipping ts-node's type chec
 
 ## `solang` + `substrate` adaption 
 
-Branch `rmrk-wasm` features a `solang` compatible `substrate` wasm targeting version of the `RMRK` contracts.
+Branch `rmrk-wasm` features a `solang` compatible `substrate` wasm targeting version of the `RMRK` contracts branched off of `master`.
 
 Modifications to make the code compile:
 
@@ -156,6 +156,13 @@ substrate-contracts-node --dev --ws-port 9944
 
 ```bash
 wasm=$(jq -r .source.wasm ./artifacts/RMRKResource.contract)
+hash=$(jq -r .source.hash ./artifacts/RMRKResource.contract)
+value=1000000000000
+gas_limit=1000000000000
+storage_deposit_limit=1000000000000
+ctor_selector=$(jq -r .spec.constructors[0].selector ./artifacts/RMRKResource.contract)
+data="${ctor_selector}30524d524b5265736f7572636510524d524b"
+salt=0x0000000000000000000000000000000000000000000000000000000000000000
 
 printf "%s null" $wasm > /tmp/rmrk.params
 
@@ -164,23 +171,6 @@ npx --yes @polkadot/api-cli@beta \
   --seed //Alice \
   --params /tmp/rmrk.params \
   tx.contracts.uploadCode
-
-hash=$(jq -r .source.hash ./artifacts/RMRKResource.contract)
-value=1000000000000
-gas_limit=1000000000000
-storage_deposit_limit=1000000000000
-ctor_selector=$(jq -r .spec.constructors[0].selector ./artifacts/RMRKResource.contract)
-# gen the $data payload => 0x30524d524b5265736f7572636510524d524b
-# fn main() {
-#     println!(
-#         "0x{}{}",
-#         hex::encode(parity_scale_codec::Encode::encode("RMRKResource")),
-#         hex::encode(parity_scale_codec::Encode::encode("RMRK"))
-#     );
-# }
-# ctor selector + scale encoded contract name and symbol
-data="${ctor_selector}30524d524b5265736f7572636510524d524b"
-salt=0x0000000000000000000000000000000000000000000000000000000000000000
 
 printf \
   "%d %d %d %s %s %s" \
@@ -198,3 +188,17 @@ npx @polkadot/api-cli@beta \
   --params /tmp/rmrk.params \
   tx.contracts.instantiate
 ```
+
+<details>
+  <summary>How to easily generate the constructor payload <code>0x30524d524b5265736f7572636510524d524b</code></summary>
+
+```rust
+fn main() {
+    println!(
+        "0x{}{}",
+        hex::encode(parity_scale_codec::Encode::encode("RMRKResource")),
+        hex::encode(parity_scale_codec::Encode::encode("RMRK"))
+    );
+}
+```
+</details>

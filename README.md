@@ -96,3 +96,108 @@ npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
 # Performance optimizations
 
 For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+
+***
+
+## `solang` + `substrate` adaption 
+
+Branch `dev-t3rn-2` features a `solang` compatible `substrate` wasm targeting version of the `RMRK` contracts.
+
+Currently based upon `dev@ab1aaf9`.
+
+To check solang specific modifications, please compare branches.
+
+### Try it out
+
+#### Installing `llvm13.0` + `solang@v0.1.10` + `substrate-contracts-node@v0.8.0`
+
+``` bash
+curl -fL \
+  -o $HOME/llvm13.0.tar.xz  \
+  https://github.com/hyperledger-labs/solang/releases/download/v0.1.10/llvm13.0-linux-x86-64.tar.xz
+cd $HOME
+tar Jxvf llvm13.0.tar.xz
+rm llvm13.0.tar.xz
+touch $HOME/.bashrc
+echo 'export "PATH=$HOME/llvm13.0/bin:$PATH"' >> $HOME/.bashrc
+echo 'export LLVM_SYS_130_PREFIX=$HOME/llvm13.0' >> $HOME/.bashrc
+
+curl -fL \
+  -o $HOME/solang \
+  https://github.com/hyperledger-labs/solang/releases/download/v0.1.10/solang-linux-x86-64
+chmod +x $HOME/solang
+mv $HOME/solang /usr/local/bin/solang
+
+cargo install \
+  contracts-node \
+  --git https://github.com/paritytech/substrate-contracts-node.git \
+  --tag v0.8.0 \
+  --force \
+  --locked
+```
+
+#### Compiling 💥 FAILS
+
+``` bash
+solang --target substrate -o ./artifacts/ ./contracts/mocks/RMRKCoreMock.sol
+```
+
+#### Running `substrate-contracts-node`
+
+```bash
+substrate-contracts-node --dev --ws-port 9944
+```
+
+#### Instantiating a `RMRKCoreMock` contract
+
+```bash
+wasm=$(jq -r .source.wasm ./artifacts/RMRKCoreMock.contract)
+hash=$(jq -r .source.hash ./artifacts/RMRKCoreMock.contract)
+value=1000000000000
+gas_limit=1000000000000
+storage_deposit_limit=1000000000000
+ctor_selector=$(jq -r .spec.constructors[0].selector ./artifacts/RMRKCoreMock.contract)
+data="${ctor_selector}30524d524b436f72654d6f636b10524d5243204372656174757265"
+salt=0x0000000000000000000000000000000000000000000000000000000000000000
+
+printf "%s null" $wasm > /tmp/rmrk.params
+
+npx --yes @polkadot/api-cli@beta \
+  --ws ws://localhost:9944 \
+  --seed //Alice \
+  --params /tmp/rmrk.params \
+  tx.contracts.uploadCode
+
+printf \
+  "%d %d %d %s %s %s" \
+  $value \
+  $gas_limit \
+  $storage_deposit_limit \
+  $hash \
+  $data \
+  $salt \
+> /tmp/rmrk.params
+
+npx @polkadot/api-cli@beta \
+  --ws ws://localhost:9944 \
+  --seed //Alice \
+  --params /tmp/rmrk.params \
+  tx.contracts.instantiate
+
+# TODO: mint some creatures
+```
+
+<details>
+  <summary>How to easily generate the constructor payload <code>0x30524d524b436f72654d6f636b10524d5243204372656174757265</code></summary>
+
+```rust
+fn main() {
+    println!(
+        "0x{}{}{}",
+        hex::encode(parity_scale_codec::Encode::encode("RMRKCoreMock")),
+        hex::encode(parity_scale_codec::Encode::encode("RMRC")),
+        hex::encode(parity_scale_codec::Encode::encode("Creature"))
+    );
+}
+```
+</details>

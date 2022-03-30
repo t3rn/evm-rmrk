@@ -9,14 +9,12 @@ import "./access/RMRKIssuable.sol";
 import "./RMRKMultiResource.sol";
 import "./RMRKNesting.sol";
 import "./RMRKRoyalties.sol";
-import "./utils/Address.sol";
+// import "./utils/Address.sol";
 import "./utils/Context.sol";
 import "./utils/Strings.sol";
 
-import "hardhat/console.sol";
-
 contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoyalties, RMRKIssuable {
-  using Address for address;
+  // using Address for address;
   using Strings for uint256;
 
   string private _name;
@@ -102,7 +100,7 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
   function _mintToNft(address to, uint256 tokenId, uint256 destinationId, bytes memory data) internal virtual {
     require(to != address(0), "RMRKCore: mint to the zero address");
     require(!_exists(tokenId), "RMRKCore: token already minted");
-    require(to.isContract(), "RMRKCore: Is not contract");
+    // require(to.isContract(), "RMRKCore: Is not contract");
     require(_checkRMRKCoreImplementer(_msgSender(), to, tokenId, ""),
       "RMRKCore: Mint to non-RMRKCore implementer"
     );
@@ -170,7 +168,7 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
     Child[] memory children = childrenOf(tokenId);
 
     uint length = children.length; //gas savings
-    for (uint i; i<length; i = u_inc(i)){
+    for (uint i = 0; i<length; i++){
       IRMRKNestingInternal(children[i].contractAddress)._burnChildren(
         children[i].tokenId,
         owner
@@ -298,7 +296,7 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
   }
 
   function approve(address to, uint256 tokenId) public virtual {
-    address owner = this.ownerOf(tokenId);
+    address owner = ownerOf(tokenId);
     require(to != owner, "RMRKCore: approval to current owner");
 
     require(
@@ -319,7 +317,7 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
   }
 
   function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
-    address owner = this.ownerOf(tokenId);
+    address owner = ownerOf(tokenId);
     return (spender == owner || getApproved(tokenId) == spender);
   }
 
@@ -416,20 +414,10 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
       uint256 tokenId,
       bytes memory _data
   ) private returns (bool) {
-      if (to.isContract()) {
-          try IRMRKCore(to).isRMRKCore(_msgSender(), from, tokenId, _data) returns (bytes4 retval) {
-              return retval == IRMRKCore.isRMRKCore.selector;
-          } catch (bytes memory reason) {
-              if (reason.length == 0) {
-                  revert("RMRKCore: transfer to non RMRKCore implementer");
-              } else {
-                  assembly {
-                      revert(add(32, reason), mload(reason))
-                  }
-              }
-          }
-      } else {
-          return true;
+      try IRMRKCore(to).isRMRKCore(_msgSender(), from, tokenId, _data) returns (bytes4 retval) {
+          return retval == IRMRKCore.isRMRKCore.selector;
+      } catch (bytes memory reason) {
+          revert("RMRKCore: transfer to non RMRKCore implementer");
       }
   }
 
@@ -463,7 +451,7 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
   function _removeItemByValue(bytes16 value, bytes16[] storage array) internal {
     bytes16[] memory memArr = array; //Copy array to memory, check for gas savings here
     uint256 length = memArr.length; //gas savings
-    for (uint i; i<length; i = u_inc(i)) {
+    for (uint i = 0; i<length; i++) {
       if (memArr[i] == value) {
         _removeItemByIndex(i, array);
         break;
@@ -489,17 +477,8 @@ contract RMRKCore is Context, IRMRKCore, RMRKMultiResource, RMRKNesting, RMRKRoy
 
   function _removeItemByIndexMulti(uint256[] memory indexes, Child[] storage array) internal {
     uint256 length = indexes.length; //gas savings
-    for (uint i; i<length; i = u_inc(i)) {
+    for (uint i = 0; i<length; i++) {
       _removeItemByIndex(indexes[i], array);
-    }
-  }
-
-  // Gas saving iterator
-  function u_inc(uint i) private pure returns (uint r) {
-    unchecked {
-      assembly {
-        r := add(i, 1)
-      }
     }
   }
 }

@@ -98,7 +98,7 @@ contract RMRKNesting is Context {
        contractAddress: childTokenAddress,
        tokenId: childTokenId,
        slotEquipped: 0,
-       partId: 0
+       partId: bytes8(0)
      });
     _addChildToPending(child, parentTokenId);
     emit ChildProposed(parentTokenId);
@@ -193,7 +193,7 @@ contract RMRKNesting is Context {
     Child[] memory children = childrenOf(tokenId);
 
     uint256 length = children.length; //gas savings
-    for (uint i; i<length; i = i.u_inc()){
+    for (uint i = 0; i<length; i++){
       address childContractAddress = children[i].contractAddress;
       uint256 childTokenId = children[i].tokenId;
 
@@ -239,7 +239,7 @@ contract RMRKNesting is Context {
 
   function removeItemByIndexMulti_C(Child[] storage array, uint256[] memory indexes) internal {
     uint256 length = indexes.length; //gas savings
-    for (uint i; i<length; i = i.u_inc()) {
+    for (uint i = 0; i<length; i++) {
       removeItemByIndex_C(array, indexes[i]);
     }
   }

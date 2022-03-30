@@ -20,7 +20,7 @@ library Strings {
             return "0";
         }
         uint256 temp = value;
-        uint256 digits;
+        uint32 digits;
         while (temp != 0) {
             digits++;
             temp /= 10;
@@ -42,7 +42,7 @@ library Strings {
             return "0x00";
         }
         uint256 temp = value;
-        uint256 length = 0;
+        uint32 length = 0;
         while (temp != 0) {
             length++;
             temp >>= 8;
@@ -53,11 +53,7 @@ library Strings {
     /**
      * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
      */
-    function toHexString(uint256 value, uint256 length)
-        internal
-        pure
-        returns (string memory)
-    {
+    function toHexString(uint256 value, uint32 length) internal pure returns (string memory) {
         bytes memory buffer = new bytes(2 * length + 2);
         buffer[0] = "0";
         buffer[1] = "x";
